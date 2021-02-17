@@ -4,6 +4,10 @@
 
 The write-up is presented as a series of commands that need to be executed. This includes a series of `kubectl config use-context <cluster-name>` which assumes commands following the same are not changing the context and are retained till the next context change.
 
+There are 2 diffs present with this document, which need to be applied to the repositories as follows,
+- `op-subscription.diff` to git@github.com:open-cluster-management/multicloud-operators-subscription.git
+- `app-samples.diff` to git@github.com:open-cluster-management/application-samples.git
+
 ## Setup
 
 1) minikube cluster with profile `hub` serves as the OCM hub
@@ -22,7 +26,7 @@ Reference: https://open-cluster-management.io/getting-started/install-hub/
 
 `kubectl apply -f https://raw.githubusercontent.com/kubernetes/cluster-registry/master/cluster-registry-crd.yaml`
 
-`git clone https://github.com/open-cluster-management/registration-operator`
+`git clone git@github.com:open-cluster-management/registration-operator.git`
 
 `cd ./registration-operator`
 
@@ -145,7 +149,7 @@ hello   1/1     Running   0          23s
 
 Reference: https://open-cluster-management.io/getting-started/install-application/#install-from-source
 
-`git clone https://github.com/open-cluster-management/multicloud-operators-subscription`
+`git clone git@github.com:open-cluster-management/multicloud-operators-subscription.git`
 
 `cd multicloud-operators-subscription`
 
