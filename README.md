@@ -1,235 +1,224 @@
 # Open-cluster-management(OCM) with minikube
 
-Base reference for procedure: https://github.com/open-cluster-management/submariner-addon#test-locally-with-kind
+**NOTE:** Currently published OCM OLM bundles are outdated, hence install is via sources
 
-## Installing OCM hub
-`$ minikube start --profile=cluster1 --cpus=4`
+The write-up is presented as a series of commands that need to be executed. This includes a series of `kubectl config use-context <cluster-name>` which assumes commands following the same are not changing the context and are retained till the next context change.
 
-**NOTE:** Hub serves as one of the managed clusters as well
+## Setup
 
-**NOTE:** Hub requires more cpus!
+1) minikube cluster with profile `hub` serves as the OCM hub
+2) minikube cluster on the same node with profile `cluster1` serves as one of the managed clusters
+3) **TODO:** Add hub as another managed cluster
 
-### Installing OLM
-Reference: https://olm.operatorframework.io/docs/getting-started/
+## Hub install
 
-`export olm_release=v0.17.0`
+Reference: https://open-cluster-management.io/getting-started/install-hub/
 
-`$ kubectl apply -f https://github.com/operator-framework/operator-lifecycle-manager/releases/download/${olm_release}/crds.yaml`
+**NOTE:** Hub needs more CPUs (or at least till we can reduce all replica sets to a single replica)
 
-`$ kubectl apply -f https://github.com/operator-framework/operator-lifecycle-manager/releases/download/${olm_release}/olm.yaml`
+`minikube start --profile=hub --cpus=4`
 
-**ALERT:** Wait for deployments to be ready before proceeding
+**NOTE:** Need to recheck if the install of `clusters.clusterregistry.k8s.io` CRD is still required
+
+`kubectl apply -f https://raw.githubusercontent.com/kubernetes/cluster-registry/master/cluster-registry-crd.yaml`
+
+`git clone https://github.com/open-cluster-management/registration-operator`
+
+`cd ./registration-operator`
+
+`make deploy-hub`
+
+Pods at the end of hub deployment:
 ```
-$ kubectl get deployment -n olm
-NAME               READY   UP-TO-DATE   AVAILABLE   AGE
-catalog-operator   1/1     1            1           11m
-olm-operator       1/1     1            1           11m
-packageserver      2/2     2            2           11m
+olm                           catalog-operator-54bbdffc6b-k22xq                          1/1     Running   0          2m8s
+olm                           olm-operator-6bfbd74fb8-ltz5g                              1/1     Running   0          2m8s
+olm                           operatorhubio-catalog-v4n9g                                1/1     Running   0          119s
+olm                           packageserver-594555d95d-mpsnv                             1/1     Running   0          118s
+olm                           packageserver-594555d95d-t9znd                             1/1     Running   0          118s
+open-cluster-management-hub   cluster-manager-registration-controller-566b5cd967-9dwbg   1/1     Running   0          57s
+open-cluster-management-hub   cluster-manager-registration-controller-566b5cd967-jzqgk   1/1     Running   0          57s
+open-cluster-management-hub   cluster-manager-registration-controller-566b5cd967-pm6tp   1/1     Running   0          57s
+open-cluster-management-hub   cluster-manager-registration-webhook-5649df75cf-26l8d      1/1     Running   0          57s
+open-cluster-management-hub   cluster-manager-registration-webhook-5649df75cf-lp4w7      1/1     Running   0          57s
+open-cluster-management-hub   cluster-manager-registration-webhook-5649df75cf-r8k55      1/1     Running   0          57s
+open-cluster-management-hub   cluster-manager-work-webhook-776d978d64-2rxw2              1/1     Running   0          57s
+open-cluster-management-hub   cluster-manager-work-webhook-776d978d64-hxr8w              1/1     Running   0          57s
+open-cluster-management-hub   cluster-manager-work-webhook-776d978d64-jkxz4              1/1     Running   0          57s
+open-cluster-management       cluster-manager-5446b78b75-5r4sm                           1/1     Running   0          84s
+open-cluster-management       cluster-manager-5446b78b75-9l5tz                           1/1     Running   0          84s
+open-cluster-management       cluster-manager-5446b78b75-bwdbs                           1/1     Running   0          84s
+open-cluster-management       cluster-manager-registry-server-84fbf889b4-npr2w           1/1     Running   0          102s
 ```
 
-### Create operator group for OCM
-`$ kubectl create ns open-cluster-management`
+## Managed `cluster1` install
 
-`$ kubectl apply -f operatorgroup.yaml`
+### Deploy managed cluster components
 
-### Create OCM hub
-Reference: https://github.com/kubernetes/cluster-registry
+Reference: https://open-cluster-management.io/getting-started/register-cluster/#install-from-source
 
-`$ kubectl apply -f https://raw.githubusercontent.com/kubernetes/cluster-registry/master/cluster-registry-crd.yaml`
+`minikube start --profile=cluster1`
 
-`$ kubectl apply -f subscription-cluster-manager.yaml`
+`kubectl config view --flatten --context=hub --minify > /tmp/hub-config`
 
-**ALERT:** Wait for deployments to be ready before proceeding
+`kubectl config view --flatten --context=hub --minify > /tmp/cluster1-config`
+
+`kubectl config use-context cluster1`
+
+`export KLUSTERLET_KIND_KUBECONFIG=/tmp/cluster1-config`
+
+`export KIND_CLUSTER=cluster1`
+
+`export HUB_KIND_KUBECONFIG=/tmp/hub-config`
+
+`make deploy-spoke-kind`
+
+**NOTE:** Wait for deployments to appear
+
 ```
 $ kubectl get deployments -n open-cluster-management
-NAME              READY   UP-TO-DATE   AVAILABLE   AGE
-cluster-manager   3/3     3            3           9m25s
-```
+NAME                         READY   UP-TO-DATE   AVAILABLE   AGE
+klusterlet                   3/3     3            3           80m
+klusterlet-registry-server   1/1     1            1           81m
 
-Reference: https://github.com/open-cluster-management/registration-operator/blob/master/deploy/cluster-manager/config/samples/operator_open-cluster-management_clustermanagers.cr.yaml
-
-`$ kubectl apply -f clustermanager.yaml`
-
-**ALERT:** Wait for deployments to be ready before proceeding
-```
-$ kubectl get deployments -n open-cluster-management-hub
-NAME                                          READY   UP-TO-DATE   AVAILABLE   AGE
-hub-cluster-manager-registration-controller   3/3     3            3           6m18s
-hub-cluster-manager-registration-webhook      3/3     3            3           6m18s
-hub-cluster-manager-work-webhook              3/3     3            3           6m18s
-```
-
-`$ kubectl apply -f subscription-multicluster-operators.yaml`
-
-**ALERT:** Watch the deployments in "open-cluster-management-agent" namespace to ensure they are fine
-```
-watch kubectl get deployments -n open-cluster-management
-NAME                                             READY   UP-TO-DATE   AVAILABLE   AGE
-cluster-manager                                  3/3     3            3           17m
-multicluster-operators-application               1/1     1            1           91s
-multicluster-operators-hub-subscription          1/1     1            1           91s
-multicluster-operators-standalone-subscription   1/1     1            1           91s
-```
-
-### First OCM managed cluster
-
-**NOTE:** We use the OCM hub cluster as one of the managed clusters
-
-Reference: https://github.com/open-cluster-management/registration-operator/blob/master/deploy/klusterlet/config/samples/operator_open-cluster-management_klusterlets.cr.yaml
-
-`$ kubectl apply -f subscription-klusterlet.yml`
-
-**ALERT:** Wait for deployments to be ready before proceeding
-```
-$ kubectl get deployments -n open-cluster-management klusterlet
-NAME         READY   UP-TO-DATE   AVAILABLE   AGE
-klusterlet   3/3     3            3           30s
-```
-
-Reference: https://github.com/open-cluster-management/registration-operator/blob/cb2abf6370e6b7e42c984ceb431f95aa69f3b796/Makefile#L132-L137
-
-`$ kubectl config view --flatten --context=cluster1 --minify > ./config`
-
-`$ kubectl create ns open-cluster-management-agent`
-
-`$ kubectl create secret generic bootstrap-hub-kubeconfig --from-file=kubeconfig=./config -n open-cluster-management-agent`
-
-`$ kubectl apply -f klusterlet-cluster1.yaml`
-
-**NOTE:** Creates a ManagedCluster resource `$ kubectl get managedcluster`
-
-Reference: https://github.com/open-cluster-management/registration-operator#what-is-next
-```
-$ kubectl get csr
-NAME             AGE     SIGNERNAME                                    REQUESTOR              CONDITION
-cluster1-lsxww   9m45s   kubernetes.io/kube-apiserver-client           minikube-user          Pending
-csr-qsjm5        66m     kubernetes.io/kube-apiserver-client-kubelet   system:node:cluster1   Approved,Issued
-```
-
-`$ kubectl certificate approve cluster1-lsxww`
-
-`$ kubectl patch managedcluster cluster1 -p='{"spec":{"hubAcceptsClient":true}}' --type=merge`
-
-**ALERT:** Wait for deployments to be ready before proceeding
-```
-kubectl get deployments -n open-cluster-management-agent
+$ kubectl get deployments -n open-cluster-management-agent
 NAME                            READY   UP-TO-DATE   AVAILABLE   AGE
-klusterlet-registration-agent   3/3     3            3           3m59s
-klusterlet-work-agent           3/3     3            3           3m59s
+klusterlet-registration-agent   3/3     3            3           80m
+klusterlet-work-agent           3/3     3            3           80m
 ```
 
-## Second OCM managed cluster
+### Complete managed cluster registration on hub
 
-`$ minikube start --profile=cluster2`
+Reference: https://open-cluster-management.io/getting-started/register-cluster/#what-is-next
 
-**NOTE:** minikube automatically sets the default cluster to the new cluster, i.e cluster2. Hence some commands carry the explicit `--context=cluster1` when required.
+`kubectl config use-context hub`
 
-### Repeat "Installing OLM"
-`$ kubectl apply -f https://github.com/operator-framework/operator-lifecycle-manager/releases/download/${olm_release}/crds.yaml`
+`kubectl get csr`
 
-`$ kubectl apply -f https://github.com/operator-framework/operator-lifecycle-manager/releases/download/${olm_release}/olm.yaml`
-
-**ALERT:** Watch the deployments in "olm" namespace
-
-### Repeat "Create operator group for OCM"
-`$ kubectl create ns open-cluster-management`
-
-`$ kubectl apply -f operatorgroup.yaml`
-
-### Repeat "First managed cluster" with small tweaks!
-`$ kubectl apply -f subscription-klusterlet.yml`
-
-**ALERT:** Watch the deployments in "open-cluster-management" namespace
-
-`$ kubectl create ns open-cluster-management-agent`
-
-`$ kubectl create secret generic bootstrap-hub-kubeconfig --from-file=kubeconfig=./config -n open-cluster-management-agent`
-
-`$ kubectl apply -f klusterlet-cluster2.yaml`
-
-`$ kubectl get csr --context=cluster1`
-
-`$ kubectl certificate approve cluster2-xxxx --context=cluster1`
-
-`$ kubectl patch managedcluster cluster2 -p='{"spec":{"hubAcceptsClient":true}}' --type=merge --context=cluster1`
-
-**ALERT:** Watch the deployments in "open-cluster-management-agent" namespace to ensure they are fine
-
-`$ kubectl apply -f subscription-multicluster-operators.yaml`
-
-**ALERT:** Watch the deployments in "open-cluster-management-agent" namespace to ensure they are fine
-
-`$ kubectl config use-context cluster1`
-
-`$ kubectl patch managedcluster cluster1 -p='{"metadata":{"labels":{"usage":"test"}}}' --type=merge`
-
-`$ kubectl patch managedcluster cluster2 -p='{"metadata":{"labels":{"usage":"development"}}}' --type=merge`
-
-## CRDs on the 2 clusters at the end of this!
-
-```
-$ kubectl get crds | grep -i management
-appliedmanifestworks.work.open-cluster-management.io           2021-02-12T19:15:37Z
-channels.apps.open-cluster-management.io                       2021-02-12T19:07:34Z
-clustermanagers.operator.open-cluster-management.io            2021-02-12T18:51:28Z
-deployables.apps.open-cluster-management.io                    2021-02-12T19:07:34Z
-helmreleases.apps.open-cluster-management.io                   2021-02-12T19:07:34Z
-klusterlets.operator.open-cluster-management.io                2021-02-12T19:10:10Z
-managedclusters.cluster.open-cluster-management.io             2021-02-12T18:52:17Z
-managedclustersetbindings.cluster.open-cluster-management.io   2021-02-12T18:52:17Z
-managedclustersets.cluster.open-cluster-management.io          2021-02-12T18:52:17Z
-manifestworks.work.open-cluster-management.io                  2021-02-12T18:52:17Z
-placementrules.apps.open-cluster-management.io                 2021-02-12T19:07:34Z
-subscriptions.apps.open-cluster-management.io                  2021-02-12T19:07:34Z
+``` Sample output:
+NAME             AGE    SIGNERNAME                                    REQUESTOR         CONDITION
+cluster1-2bcsp   102s   kubernetes.io/kube-apiserver-client           minikube-user     Pending
+csr-wwvpf        34m    kubernetes.io/kube-apiserver-client-kubelet   system:node:hub   Approved,Issued
 ```
 
-```
-$ kubectl get crds --context=cluster2 | grep -i management
-appliedmanifestworks.work.open-cluster-management.io   2021-02-12T19:25:12Z
-channels.apps.open-cluster-management.io               2021-02-12T19:22:10Z
-deployables.apps.open-cluster-management.io            2021-02-12T19:22:10Z
-helmreleases.apps.open-cluster-management.io           2021-02-12T19:22:10Z
-klusterlets.operator.open-cluster-management.io        2021-02-12T19:23:47Z
-placementrules.apps.open-cluster-management.io         2021-02-12T19:22:10Z
-subscriptions.apps.open-cluster-management.io          2021-02-12T19:22:10Z
-```
+`kubectl certificate approve cluster1-2bcsp`
 
-## Test an subscription/application deployment
+`kubectl get csr`
 
-`$ git clone git@github.com:open-cluster-management/application-samples.git`
-
-`$ cd application-samples`
-
-`$ kubectl apply -k subscriptions/channel`
-
-**NOTE:** Need some edits to the Subscription manifest to get the right github branch/path, apply the following diff,
-```
-diff --git a/subscriptions/book-import/subscription.yaml b/subscriptions/book-import/subscription.yaml
-index 69fcb6f..affcc9c 100644
---- a/subscriptions/book-import/subscription.yaml
-+++ b/subscriptions/book-import/subscription.yaml
-@@ -3,8 +3,8 @@ apiVersion: apps.open-cluster-management.io/v1
- kind: Subscription
- metadata:
-   annotations:
--    apps.open-cluster-management.io/git-branch: master
--    apps.open-cluster-management.io/git-path: book-import/app
-+    apps.open-cluster-management.io/github-branch: main
-+    apps.open-cluster-management.io/github-path: book-import
-   labels:
-     app: book-import
-   name: book-import
+``` Sample output:
+NAME             AGE    SIGNERNAME                                    REQUESTOR         CONDITION
+cluster1-2bcsp   2m2s   kubernetes.io/kube-apiserver-client           minikube-user     Approved,Issued
+csr-wwvpf        35m    kubernetes.io/kube-apiserver-client-kubelet   system:node:hub   Approved,Issued
 ```
 
-`$ kubectl apply -k subscriptions/book-import`
+`kubectl get managedcluster`
 
-**TODO**: The above creates "deployables" in the application namespace, but there is no real deployment on the managed cluster (still hunting for errors that is causing this). IOW, the Subscription deployable remains in the Propogated state and does not become Active
+``` Sample output:
+NAME       HUB ACCEPTED   MANAGED CLUSTER URLS   JOINED   AVAILABLE   AGE
+cluster1   false          https://localhost                           3m15s
+```
+
+`kubectl patch managedcluster cluster1 -p='{"spec":{"hubAcceptsClient":true}}' --type=merge`
+
+`kubectl get managedcluster`
+
+``` Sample output:
+NAME       HUB ACCEPTED   MANAGED CLUSTER URLS   JOINED   AVAILABLE   AGE
+cluster1   true           https://localhost      True     True        3m54s
+```
+
+### Test
+
+Reference: https://open-cluster-management.io/getting-started/register-cluster/#what-is-next
+
+`kubectl config use-context hub`
+
+`kubectl apply -f ../ocm-minikube/ocm-manifests/manifestWork-sample.yaml`
+
+`kubectl get pods --context=cluster1`
+
+``` Sample output:
+NAME    READY   STATUS    RESTARTS   AGE
+hello   1/1     Running   0          23s
+```
+
+## Application management install
+
+Reference: https://open-cluster-management.io/getting-started/install-application/#install-from-source
+
+`git clone https://github.com/open-cluster-management/multicloud-operators-subscription`
+
+`cd multicloud-operators-subscription`
+
+`git apply op-subscription.diff`
+
+`kubectl config use-context hub`
+
+`USE_VENDORIZED_BUILD_HARNESS=faked make deploy-community-hub`
+
+**NOTE:** Faked `USE_VENDORIZED_BUILD_HARNESS`, does not impact the make target in use above
+
+**NOTE:** Wait for deployments to appear
 
 ```
-$ kubectl get deployable -n book-import
-NAME                                             TEMPLATE-KIND   TEMPLATE-APIVERSION                  AGE   STATUS
-book-import-book-import-book-import-deployment   Deployment      apps/v1                              8s    
-book-import-book-import-book-import-route        Route           route.openshift.io/v1                8s    
-book-import-book-import-book-import-service      Service         v1                                   8s    
-book-import-deployable                           Subscription    apps.open-cluster-management.io/v1   8s    Propagated
+multicluster-operators        multicluster-operators-application-84bc4f858f-gzqj8        4/4     Running   0          81s
+multicluster-operators        multicluster-operators-subscription-5c4844d94c-f6l8p       1/1     Running   0          81s
+```
+
+`export HUB_KUBECONFIG=/tmp/hub-config`
+
+`kubectl config use-context cluster1`
+
+`export MANAGED_CLUSTER_NAME=cluster1`
+
+`USE_VENDORIZED_BUILD_HARNESS=faked make deploy-community-managed`
+
+**NOTE:** Faked `USE_VENDORIZED_BUILD_HARNESS`, does not impact the make target in use above
+
+**NOTE:** Wait for deployments to appear
+
+```
+multicluster-operators          multicluster-operators-subscription-65cd68bbd4-mxmwf   1/1     Running   0          20s
+```
+
+### Test
+
+`kubectl config use-context hub`
+
+`kubectl apply -f examples/helmrepo-hub-channel`
+
+``` Sample output:
+kubectl get pods --context=cluster1
+NAME                                                   READY   STATUS    RESTARTS   AGE
+hello                                                  1/1     Running   0          25m
+nginx-ingress-1619c-controller-5959b6b4c4-fd856        1/1     Running   0          6m52s
+nginx-ingress-1619c-default-backend-84f598dd65-jxmkd   1/1     Running   0          6m52s
+```
+
+## Application samples test
+
+- Label the managed cluster `cluster1` as `usage=test`
+`kubectl patch managedcluster cluster1 -p='{"metadata":{"labels":{"usage":"test"}}}' --type=merge`
+
+`git clone git@github.com:open-cluster-management/application-samples.git`
+
+`cd application-samples`
+
+`git apply app-samples.diff`
+
+`kubectl apply -k subscriptions/channel`
+
+`kubectl apply -k subscriptions/book-import`
+
+`kubectl apply -k subscriptions/book-import`
+
+One error noted and application CR is not created, but example still works:
+```
+kubectl apply -f subscriptions/book-import/application.yaml 
+Error from server (InternalError): error when creating "subscriptions/book-import/application.yaml": Internal error occurred: failed calling webhook "applications.apps.open-cluster-management.webhook": Post "https://multicluster-operators-application-svc.multicluster-operators.svc:443/app-validate?timeout=10s": dial tcp 10.111.143.132:443: connect: connection refused
+```
+
+``` Sample output:
+$ kubectl get pods --context=cluster1 -n book-import
+NAME                          READY   STATUS    RESTARTS   AGE
+book-import-849fc8cb8-7697x   1/1     Running   0          58m
 ```

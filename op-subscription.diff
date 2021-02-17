@@ -1,0 +1,23 @@
+diff --git a/deploy/hub/application-operator.yaml b/deploy/hub/application-operator.yaml
+index babc503..0963d6c 100644
+--- a/deploy/hub/application-operator.yaml
++++ b/deploy/hub/application-operator.yaml
+@@ -118,6 +118,7 @@ spec:
+       - command:
+         - /usr/local/bin/multicluster-operators-channel
+         - --alsologtostderr
++        - --debug=true
+         env:
+         - name: WATCH_NAMESPACE
+         - name: POD_NAME
+diff --git a/examples/helmrepo-hub-channel/01-channel.yaml b/examples/helmrepo-hub-channel/01-channel.yaml
+index 1d4d6ac..ef59cbd 100644
+--- a/examples/helmrepo-hub-channel/01-channel.yaml
++++ b/examples/helmrepo-hub-channel/01-channel.yaml
+@@ -5,5 +5,5 @@ metadata:
+   namespace: dev
+ spec:
+   type: HelmRepo
+-  pathname: http://kubernetes-charts.storage.googleapis.com/
++  pathname: https://charts.helm.sh/stable/
+   insecureSkipVerify: true
