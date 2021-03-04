@@ -32,8 +32,8 @@ Reference: https://open-cluster-management.io/getting-started/install-hub/
 
 `make deploy-hub`
 
-Pods at the end of hub deployment:
 ```
+Pods at the end of hub deployment:
 olm                           catalog-operator-54bbdffc6b-k22xq                          1/1     Running   0          2m8s
 olm                           olm-operator-6bfbd74fb8-ltz5g                              1/1     Running   0          2m8s
 olm                           operatorhubio-catalog-v4n9g                                1/1     Running   0          119s
@@ -64,7 +64,7 @@ Reference: https://open-cluster-management.io/getting-started/register-cluster/#
 
 `kubectl config view --flatten --context=hub --minify > /tmp/hub-config`
 
-`kubectl config view --flatten --context=hub --minify > /tmp/cluster1-config`
+`kubectl config view --flatten --context=cluster1 --minify > /tmp/cluster1-config`
 
 `kubectl config use-context cluster1`
 
@@ -79,6 +79,7 @@ Reference: https://open-cluster-management.io/getting-started/register-cluster/#
 **NOTE:** Wait for deployments to appear
 
 ```
+Sample output:
 $ kubectl get deployments -n open-cluster-management
 NAME                         READY   UP-TO-DATE   AVAILABLE   AGE
 klusterlet                   3/3     3            3           80m
@@ -98,7 +99,8 @@ Reference: https://open-cluster-management.io/getting-started/register-cluster/#
 
 `kubectl get csr`
 
-``` Sample output:
+```
+Sample output:
 NAME             AGE    SIGNERNAME                                    REQUESTOR         CONDITION
 cluster1-2bcsp   102s   kubernetes.io/kube-apiserver-client           minikube-user     Pending
 csr-wwvpf        34m    kubernetes.io/kube-apiserver-client-kubelet   system:node:hub   Approved,Issued
@@ -108,7 +110,8 @@ csr-wwvpf        34m    kubernetes.io/kube-apiserver-client-kubelet   system:nod
 
 `kubectl get csr`
 
-``` Sample output:
+```
+Sample output:
 NAME             AGE    SIGNERNAME                                    REQUESTOR         CONDITION
 cluster1-2bcsp   2m2s   kubernetes.io/kube-apiserver-client           minikube-user     Approved,Issued
 csr-wwvpf        35m    kubernetes.io/kube-apiserver-client-kubelet   system:node:hub   Approved,Issued
@@ -116,7 +119,8 @@ csr-wwvpf        35m    kubernetes.io/kube-apiserver-client-kubelet   system:nod
 
 `kubectl get managedcluster`
 
-``` Sample output:
+```
+Sample output:
 NAME       HUB ACCEPTED   MANAGED CLUSTER URLS   JOINED   AVAILABLE   AGE
 cluster1   false          https://localhost                           3m15s
 ```
@@ -125,7 +129,8 @@ cluster1   false          https://localhost                           3m15s
 
 `kubectl get managedcluster`
 
-``` Sample output:
+```
+Sample output:
 NAME       HUB ACCEPTED   MANAGED CLUSTER URLS   JOINED   AVAILABLE   AGE
 cluster1   true           https://localhost      True     True        3m54s
 ```
@@ -140,7 +145,8 @@ Reference: https://open-cluster-management.io/getting-started/register-cluster/#
 
 `kubectl get pods --context=cluster1`
 
-``` Sample output:
+```
+Sample output:
 NAME    READY   STATUS    RESTARTS   AGE
 hello   1/1     Running   0          23s
 ```
@@ -164,6 +170,7 @@ Reference: https://open-cluster-management.io/getting-started/install-applicatio
 **NOTE:** Wait for deployments to appear
 
 ```
+Sample output:
 multicluster-operators        multicluster-operators-application-84bc4f858f-gzqj8        4/4     Running   0          81s
 multicluster-operators        multicluster-operators-subscription-5c4844d94c-f6l8p       1/1     Running   0          81s
 ```
@@ -181,6 +188,7 @@ multicluster-operators        multicluster-operators-subscription-5c4844d94c-f6l
 **NOTE:** Wait for deployments to appear
 
 ```
+Sample output:
 multicluster-operators          multicluster-operators-subscription-65cd68bbd4-mxmwf   1/1     Running   0          20s
 ```
 
@@ -190,7 +198,8 @@ multicluster-operators          multicluster-operators-subscription-65cd68bbd4-m
 
 `kubectl apply -f examples/helmrepo-hub-channel`
 
-``` Sample output:
+```
+Sample output:
 kubectl get pods --context=cluster1
 NAME                                                   READY   STATUS    RESTARTS   AGE
 hello                                                  1/1     Running   0          25m
@@ -221,7 +230,8 @@ kubectl apply -f subscriptions/book-import/application.yaml
 Error from server (InternalError): error when creating "subscriptions/book-import/application.yaml": Internal error occurred: failed calling webhook "applications.apps.open-cluster-management.webhook": Post "https://multicluster-operators-application-svc.multicluster-operators.svc:443/app-validate?timeout=10s": dial tcp 10.111.143.132:443: connect: connection refused
 ```
 
-``` Sample output:
+```
+Sample output:
 $ kubectl get pods --context=cluster1 -n book-import
 NAME                          READY   STATUS    RESTARTS   AGE
 book-import-849fc8cb8-7697x   1/1     Running   0          58m
