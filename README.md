@@ -4,9 +4,10 @@
 
 The write-up is presented as a series of commands that need to be executed. This includes a series of `kubectl config use-context <cluster-name>` which assumes commands following the same are not changing the context and are retained till the next context change.
 
-There are 2 diffs present with this document, which need to be applied to the repositories as follows,
-- `op-subscription.diff` to git@github.com:open-cluster-management/multicloud-operators-subscription.git
-- `app-samples.diff` to git@github.com:open-cluster-management/application-samples.git
+There are 3 diffs present with this document, which need to be applied to the repositories as follows,
+- `registration-operator.diff` to git@github.com:open-cluster-management/registration-operator
+- `multicloud-operators-subscription.diff` to git@github.com:open-cluster-management/multicloud-operators-subscription.git
+- `application-samples.diff` to git@github.com:open-cluster-management/application-samples.git
 
 ## Setup
 
@@ -29,6 +30,8 @@ Reference: https://open-cluster-management.io/getting-started/install-hub/
 `git clone git@github.com:open-cluster-management/registration-operator.git`
 
 `cd ./registration-operator`
+
+`git apply ../ocm-minikube/registration-operator.diff`
 
 `make deploy-hub`
 
@@ -141,7 +144,11 @@ Reference: https://open-cluster-management.io/getting-started/register-cluster/#
 
 `kubectl config use-context hub`
 
-`kubectl apply -f ../ocm-minikube/ocm-manifests/manifestWork-sample.yaml`
+NOTE: Edit kustomize to change namespace to $KIND_CLUSTER
+
+`sed -e "s,KIND_CLUSTER,$KIND_CLUSTER," -i ../ocm-minikube/examples/kustomization.yaml`
+
+`kubectl apply -k ../ocm-minikube/examples/manifest-work.yaml`
 
 `kubectl get pods --context=cluster1`
 
@@ -153,13 +160,14 @@ hello   1/1     Running   0          23s
 
 ## Application management install
 
+### Hub operator
 Reference: https://open-cluster-management.io/getting-started/install-application/#install-from-source
 
 `git clone git@github.com:open-cluster-management/multicloud-operators-subscription.git`
 
 `cd multicloud-operators-subscription`
 
-`git apply op-subscription.diff`
+`git apply ../ocm-minikube/multicloud-operators-subscription.diff`
 
 `kubectl config use-context hub`
 
@@ -171,15 +179,21 @@ Reference: https://open-cluster-management.io/getting-started/install-applicatio
 
 ```
 Sample output:
-multicluster-operators        multicluster-operators-application-84bc4f858f-gzqj8        4/4     Running   0          81s
-multicluster-operators        multicluster-operators-subscription-5c4844d94c-f6l8p       1/1     Running   0          81s
+kubectl get deployments -n multicluster-operators
+NAME                                  READY   UP-TO-DATE   AVAILABLE   AGE
+multicluster-operators-application    1/1     1            1           47s
+multicluster-operators-subscription   1/1     1            1           47s
 ```
+
+### ManagedCluster operator
 
 `export HUB_KUBECONFIG=/tmp/hub-config`
 
 `kubectl config use-context cluster1`
 
 `export MANAGED_CLUSTER_NAME=cluster1`
+
+TODO: if hub is an MC we may need a different namespace than multicluster-operatos in this step, still to be tested
 
 `USE_VENDORIZED_BUILD_HARNESS=faked make deploy-community-managed`
 
@@ -189,7 +203,9 @@ multicluster-operators        multicluster-operators-subscription-5c4844d94c-f6l
 
 ```
 Sample output:
-multicluster-operators          multicluster-operators-subscription-65cd68bbd4-mxmwf   1/1     Running   0          20s
+kubectl get deployments -n multicluster-operators
+NAME                                  READY   UP-TO-DATE   AVAILABLE   AGE
+multicluster-operators-subscription   1/1     1            1           17s
 ```
 
 ### Test
@@ -197,6 +213,8 @@ multicluster-operators          multicluster-operators-subscription-65cd68bbd4-m
 `kubectl config use-context hub`
 
 `kubectl apply -f examples/helmrepo-hub-channel`
+
+NOTE: When adding a second MC, there were initial MC namespace not found errors in the hub deployment `multicluster-operators/multicluster-operators-application` logs. Restarting the deployment fixed the issue (which was done to increase log verbosity, but fixed the issue)
 
 ```
 Sample output:
@@ -209,22 +227,21 @@ nginx-ingress-1619c-default-backend-84f598dd65-jxmkd   1/1     Running   0      
 
 ## Application samples test
 
-- Label the managed cluster `cluster1` as `usage=test`
+Label the managed cluster `cluster1` as `usage=test`
+
 `kubectl patch managedcluster cluster1 -p='{"metadata":{"labels":{"usage":"test"}}}' --type=merge`
 
 `git clone git@github.com:open-cluster-management/application-samples.git`
 
 `cd application-samples`
 
-`git apply app-samples.diff`
+`git apply ../ocm-minikube/application-samples.diff`
 
 `kubectl apply -k subscriptions/channel`
 
 `kubectl apply -k subscriptions/book-import`
 
-`kubectl apply -k subscriptions/book-import`
-
-One error noted and application CR is not created, but example still works:
+One error was noted and application CR is not created, but example still works:
 ```
 kubectl apply -f subscriptions/book-import/application.yaml 
 Error from server (InternalError): error when creating "subscriptions/book-import/application.yaml": Internal error occurred: failed calling webhook "applications.apps.open-cluster-management.webhook": Post "https://multicluster-operators-application-svc.multicluster-operators.svc:443/app-validate?timeout=10s": dial tcp 10.111.143.132:443: connect: connection refused

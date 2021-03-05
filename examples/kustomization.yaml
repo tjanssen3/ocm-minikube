@@ -1,0 +1,4 @@
+resources:
+  - manifest-work.yaml
+
+namespace: KIND_CLUSTER
