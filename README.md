@@ -57,7 +57,9 @@ open-cluster-management       cluster-manager-5446b78b75-bwdbs                  
 open-cluster-management       cluster-manager-registry-server-84fbf889b4-npr2w           1/1     Running   0          102s
 ```
 
-## Managed `cluster1` install
+## Managed Cluster install
+
+NOTE: Repeat the steps to add another managed cluster including the hub itself
 
 ### Deploy managed cluster components
 
@@ -148,7 +150,10 @@ NOTE: Edit kustomize to change namespace to $KIND_CLUSTER
 
 `sed -e "s,KIND_CLUSTER,$KIND_CLUSTER," -i ../ocm-minikube/examples/kustomization.yaml`
 
-`kubectl apply -k ../ocm-minikube/examples/manifest-work.yaml`
+`kubectl apply -k ../ocm-minikube/examples/`
+
+- Tidy up!
+`sed -e "s,$KIND_CLUSTER,KIND_CLUSTER," -i ../ocm-minikube/examples/kustomization.yaml`
 
 `kubectl get pods --context=cluster1`
 
@@ -185,15 +190,54 @@ multicluster-operators-application    1/1     1            1           47s
 multicluster-operators-subscription   1/1     1            1           47s
 ```
 
+#### Hub as a ManagedCluster
+
+`kubectl config use-context hub`
+
+IMPORTANT: Label the hub ManagedCluster as local, in the example below the hub MC was named "hub" replace as required based on the name hub was added as the MC
+    - `export MANAGED_CLUSTER_NAME=hub`
+    - `kubectl patch managedcluster ${MANAGED_CLUSTER_NAME} -p='{"metadata":{"labels":{"local-cluster":"true"}}}' --type=merge`
+
+`cd ../multicloud-operators-subscription`
+
+`export HUB_KUBECONFIG=/tmp/hub-config`
+
+`cp -f ${HUB_KUBECONFIG} /tmp/kubeconfig`
+
+`kubectl -n multicluster-operators create secret generic appmgr-hub-kubeconfig --from-file=kubeconfig=/tmp/kubeconfig`
+
+`mkdir -p munge-manifests`
+
+`cp deploy/managed/operator.yaml munge-manifests/operator.yaml`
+
+`sed -i 's/<managed cluster name>/'"$MANAGED_CLUSTER_NAME"'/g' munge-manifests/operator.yaml`
+
+`sed -i 's/<managed cluster namespace>/'"$MANAGED_CLUSTER_NAME"'/g' munge-manifests/operator.yaml`
+
+`sed -i '0,/name: multicluster-operators-subscription/{s/name: multicluster-operators-subscription/name: multicluster-operators-subscription-mc/}' munge-manifests/operator.yaml`
+
+`kubectl apply -f munge-manifests/operator.yaml`
+
+**NOTE:** Wait for deployments to appear
+
+```
+Sample output:
+kubectl get deployments -n multicluster-operators
+NAME                                     READY   UP-TO-DATE   AVAILABLE   AGE
+multicluster-operators-application       1/1     1            1           3h42m
+multicluster-operators-subscription      1/1     1            1           3h42m
+multicluster-operators-subscription-mc   1/1     1            1           20s
+```
+
 ### ManagedCluster operator
+
+NOTE: If adding the hub as one of the managed clusters, see [above](#hub-as-a-managed-cluster)
 
 `export HUB_KUBECONFIG=/tmp/hub-config`
 
 `kubectl config use-context cluster1`
 
 `export MANAGED_CLUSTER_NAME=cluster1`
-
-TODO: if hub is an MC we may need a different namespace than multicluster-operatos in this step, still to be tested
 
 `USE_VENDORIZED_BUILD_HARNESS=faked make deploy-community-managed`
 
@@ -214,7 +258,7 @@ multicluster-operators-subscription   1/1     1            1           17s
 
 `kubectl apply -f examples/helmrepo-hub-channel`
 
-NOTE: When adding a second MC, there were initial MC namespace not found errors in the hub deployment `multicluster-operators/multicluster-operators-application` logs. Restarting the deployment fixed the issue (which was done to increase log verbosity, but fixed the issue)
+NOTE: When adding a second MC, there were initial MC namespace not found errors in the hub deployment `multicluster-operators/multicluster-operators-application` logs. Restarting the deployment fixed the issue (which was done to increase log verbosity, but fixed the issue instead)
 
 ```
 Sample output:
