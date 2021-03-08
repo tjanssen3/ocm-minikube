@@ -65,7 +65,7 @@ open-cluster-management       cluster-manager-registry-server-84fbf889b4-npr2w  
 
 ## Managed Cluster install
 
-NOTE: Repeat the steps to add another managed cluster including the hub itself
+**NOTE: Repeat the steps to add another managed cluster including the hub itself**
 
 ### Deploy managed cluster components
 
@@ -196,11 +196,17 @@ multicluster-operators-application    1/1     1            1           47s
 multicluster-operators-subscription   1/1     1            1           47s
 ```
 
-#### Hub as a ManagedCluster
+#### ManagedCluster operator for the HUB
+
+**NOTE: This assumes hub is already added as a ManagedCluster following this [section](#managed-cluster-install), replacing `cluster1` with `hub`**
 
 `kubectl config use-context hub`
 
-IMPORTANT: Label the hub ManagedCluster as local, in the example below the hub MC was named "hub" replace as required based on the name hub was added as the MC
+Check if `hub` is available as a ManagedCluster,
+
+`kubectl get managedcluster hub`
+
+**IMPORTANT: Label the hub ManagedCluster as local, in the example below the hub MC was named `hub` replace as required based on the name hub was added as a MC**
     - `export MANAGED_CLUSTER_NAME=hub`
     - `kubectl patch managedcluster ${MANAGED_CLUSTER_NAME} -p='{"metadata":{"labels":{"local-cluster":"true"}}}' --type=merge`
 
@@ -237,7 +243,7 @@ multicluster-operators-subscription-mc   1/1     1            1           20s
 
 ### ManagedCluster operator
 
-NOTE: If adding the hub as one of the managed clusters, see [above](#hub-as-a-managed-cluster)
+**NOTE: If adding the hub as one of the managed clusters, see [above](#hub-as-a-managedcluster) instructions instead of following this section!**
 
 `export HUB_KUBECONFIG=/tmp/hub-config`
 
