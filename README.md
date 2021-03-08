@@ -9,6 +9,12 @@ There are 3 diffs present with this document, which need to be applied to the re
 - `multicloud-operators-subscription.diff` to git@github.com:open-cluster-management/multicloud-operators-subscription.git
 - `application-samples.diff` to git@github.com:open-cluster-management/application-samples.git
 
+## Pre-requisites
+
+1) Use `kvm2` as the minikube driver for the setup
+
+    NOTE: `docker` driver was found not to work correctly for this setup!
+
 ## Setup
 
 1) minikube cluster with profile `hub` serves as the OCM hub
