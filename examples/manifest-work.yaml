@@ -2,7 +2,7 @@ apiVersion: work.open-cluster-management.io/v1
 kind: ManifestWork
 metadata:
   name: mw-01
-  namespace: <to-do>
+  namespace: <kustomize>
 spec:
   workload:
     manifests:
