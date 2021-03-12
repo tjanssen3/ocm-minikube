@@ -171,7 +171,7 @@ hello   1/1     Running   0          23s
 
 ## Application management install
 
-### Hub operator
+### Hub subscription operator
 Reference: https://open-cluster-management.io/getting-started/install-application/#install-from-source
 
 `git clone git@github.com:open-cluster-management/multicloud-operators-subscription.git`
@@ -196,7 +196,7 @@ multicluster-operators-application    1/1     1            1           47s
 multicluster-operators-subscription   1/1     1            1           47s
 ```
 
-#### ManagedCluster operator for the HUB
+#### ManagedCluster subscription operator for the HUB
 
 **NOTE: This assumes hub is already added as a ManagedCluster following this [section](#managed-cluster-install), replacing `cluster1` with `hub`**
 
@@ -241,7 +241,7 @@ multicluster-operators-subscription      1/1     1            1           3h42m
 multicluster-operators-subscription-mc   1/1     1            1           20s
 ```
 
-### ManagedCluster operator
+### ManagedCluster subscription operator
 
 **NOTE: If adding the hub as one of the managed clusters, see [above](#hub-as-a-managedcluster) instructions instead of following this section!**
 
