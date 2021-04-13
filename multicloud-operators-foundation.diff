@@ -1,0 +1,62 @@
+diff --git a/deploy/managedcluster/hub/install.sh b/deploy/managedcluster/hub/install.sh
+index 4d3205bd..e1f7278d 100755
+--- a/deploy/managedcluster/hub/install.sh
++++ b/deploy/managedcluster/hub/install.sh
+@@ -11,14 +11,9 @@ if [ $? -eq 0 ]; then
+   export OLM_NAMESPACE=openshift-operator-lifecycle-manager
+ fi
+ 
+-rm -rf registration-operator
+-
+-echo "############  Cloning registration-operator"
+-git clone https://github.com/open-cluster-management/registration-operator.git
+-
+ cd registration-operator || {
+-  printf "cd failed, registration-operator does not exist"
+-  return 1
++  printf "cd failed, registration-operator does not exist. Clone and apply diff first, then run this file. \ngit clone https://github.com/open-cluster-management/registration-operator.git\n"
++  exit 1
+ }
+ 
+ echo "############  Deploying hub"
+@@ -63,6 +58,5 @@ echo "############  ManagedCluster hub is installed successfully!!"
+ 
+ echo "############  Cleanup"
+ cd ../ || exist
+-rm -rf registration-operator
+ 
+ echo "############  Finished installation!!!"
+diff --git a/deploy/managedcluster/klusterlet/install.sh b/deploy/managedcluster/klusterlet/install.sh
+index c7ceb909..a3dbde14 100755
+--- a/deploy/managedcluster/klusterlet/install.sh
++++ b/deploy/managedcluster/klusterlet/install.sh
+@@ -14,18 +14,14 @@ if [ $? -eq 0 ]; then
+   export OLM_NAMESPACE=openshift-operator-lifecycle-manager
+ fi
+ 
+-rm -rf registration-operator
+-
+-echo "############  Cloning registration-operator"
+-git clone https://github.com/open-cluster-management/registration-operator.git
+-
++# manually clone registration-operator, then apply changes, then apply this script
+ cd registration-operator || {
+-  printf "cd failed, registration-operator does not exist"
+-  return 1
++  printf "cd failed, registration-operator does not exist. Clone project and apply diff first: \ngit clone https://github.com/open-cluster-management/registration-operator.git\n"
++  exit 1
+ }
+ 
+ echo "############  Deploying klusterlet"
+-make deploy-spoke
++make deploy-spoke-kind
+ if [ $? -ne 0 ]; then
+  echo "############  Failed to deploy klusterlet"
+  exit 1
+@@ -51,6 +47,5 @@ echo "############  ManagedCluster klusterlet is installed successfully!!"
+ 
+ echo "############  Cleanup"
+ cd ../ || exist
+-rm -rf registration-operator
+ 
+ echo "############  Finished installation!!!"
