@@ -37,6 +37,8 @@ Reference: https://open-cluster-management.io/getting-started/install-hub/
 
 `cd ./registration-operator`
 
+`git checkout release-2.3`
+
 `git apply ../ocm-minikube/registration-operator.diff`
 
 `make deploy-hub`
@@ -73,19 +75,15 @@ Reference: https://open-cluster-management.io/getting-started/register-cluster/#
 
 `minikube start --profile=cluster1`
 
-`kubectl config view --flatten --context=hub --minify > /tmp/hub-config`
-
-`kubectl config view --flatten --context=cluster1 --minify > /tmp/cluster1-config`
-
 `kubectl config use-context cluster1`
 
-`export KLUSTERLET_KIND_KUBECONFIG=/tmp/cluster1-config`
+`export MANAGED_CLUSTER=cluster1`
 
-`export KIND_CLUSTER=cluster1`
+`kubectl config view --flatten --context=hub --minify > /tmp/hub-config`
 
-`export HUB_KIND_KUBECONFIG=/tmp/hub-config`
+`export HUB_KUBECONFIG=/tmp/hub-config`
 
-`make deploy-spoke-kind`
+`make deploy-spoke`
 
 **NOTE:** Wait for deployments to appear
 
@@ -158,10 +156,15 @@ NOTE: Edit kustomize to change namespace to $KIND_CLUSTER
 
 `kubectl apply -k ../ocm-minikube/examples/`
 
-- Tidy up!
-`sed -e "s,$KIND_CLUSTER,KIND_CLUSTER," -i ../ocm-minikube/examples/kustomization.yaml`
-
 `kubectl get pods --context=cluster1`
+
+Once pod is visible and test is succesful
+
+`kubectl delete -k ../ocm-minikube/examples/`
+
+- Tidy up!
+
+`sed -e "s,$KIND_CLUSTER,KIND_CLUSTER," -i ../ocm-minikube/examples/kustomization.yaml`
 
 ```
 Sample output:
