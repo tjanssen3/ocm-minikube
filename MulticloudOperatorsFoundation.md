@@ -1,132 +1,92 @@
 # MulticloudOperatorsFoundation.md
-This document describes how to install a hub and managed cluster on a Kind instance. See the main [README.md](README.md) for instructions on setup. `multicloud-operators-foundation` is required to get the `ManagedClusterView` resource working. Beyond the initial setup, application and cluster management should be the same as the main document. Note that during these instructions, you'll set up `registration-operator` as well.
+This document describes how to install a hub and managed cluster on a Minikube or Kind instance. See the main [README.md](README.md) for instructions on setup. `multicloud-operators-foundation` is required to get the `ManagedClusterView` resource working. Beyond the initial setup, application and cluster management should be the same as the main document. Note that during these instructions, you'll set up `registration-operator` as well.
 
-## Known Issues
-1. `ocm-minikube/registration-operator.diff` does not apply:
-```bash
-error: patch failed: Makefile:158
-error: Makefile: patch does not apply
-```
-Solution: revert to "known good" revision of `registration-operator`: `daf5b5cf51a7da18243c6f99cee94f8197f53b90`
+The instructions below should be all the steps you need to take to get multicloud-operators-foundation hub and managed cluster running, along with a working ManagedClusterView resource. The instructions are shown for Kind. In comments, when appropriate, there are Minikube-equivalent instructions. 
 
-## Hub install with multicloud-operators-foundation
-Reference: https://open-cluster-management.io/getting-started/install-hub/
+# Setup
+You'll need to apply a diff for Minikube environment setup to work. By default, `multicloud-operators-foundation` expects a Kind setup. The diff will remove the hardcoded `kind-` prefix from registration-operators/Makefile.
 
-**NOTE:** Hub needs more CPUs (or at least till we can reduce all replica sets to a single replica)
+## Requirements
+1. Kind is installed: [instructions here](https://kind.sigs.k8s.io/docs/user/quick-start/#installation)
+2. Kustomize is installed: [instructions here](https://kubectl.docs.kubernetes.io/installation/kustomize/)
 
-Start hub cluster (if applicable): `minikube start --profile=hub --cpus=4`
-
-**NOTE:** Need to recheck if the install of `clusters.clusterregistry.k8s.io` CRD is still required
-
-`kubectl apply -f https://raw.githubusercontent.com/kubernetes/cluster-registry/master/cluster-registry-crd.yaml`
-
-Clone `multicloud-operators-foundation`: `git clone git@github.com:open-cluster-management/multicloud-operators-foundation.git`
-
-Apply `multicloud-operators-foundation` diff: `cd ./multicloud-operators-foundation; git apply ../ocm-minikube/multicloud-operators-foundation.diff`
-
-Manually clone `registration-operator` into `multicloud-operators-foundation`: `git clone git@github.com:open-cluster-management/registration-operator.git`
-
-Apply diff for `registration-operator`: `cd registration-operator; git apply ../../ocm-minikube/registration-operator.diff`. This is technically optional at this point because the diff is only required for managed clusters, not the hub.
-
-Run hub deployment script (from `multicloud-operators-foundation` root): `make deploy-hub`
-
-```
-Pods at the end of hub deployment:
-olm                           catalog-operator-54bbdffc6b-k22xq                          1/1     Running   0          2m8s
-olm                           olm-operator-6bfbd74fb8-ltz5g                              1/1     Running   0          2m8s
-olm                           operatorhubio-catalog-v4n9g                                1/1     Running   0          119s
-olm                           packageserver-594555d95d-mpsnv                             1/1     Running   0          118s
-olm                           packageserver-594555d95d-t9znd                             1/1     Running   0          118s
-open-cluster-management-hub   cluster-manager-registration-controller-566b5cd967-9dwbg   1/1     Running   0          57s
-open-cluster-management-hub   cluster-manager-registration-controller-566b5cd967-jzqgk   1/1     Running   0          57s
-open-cluster-management-hub   cluster-manager-registration-controller-566b5cd967-pm6tp   1/1     Running   0          57s
-open-cluster-management-hub   cluster-manager-registration-webhook-5649df75cf-26l8d      1/1     Running   0          57s
-open-cluster-management-hub   cluster-manager-registration-webhook-5649df75cf-lp4w7      1/1     Running   0          57s
-open-cluster-management-hub   cluster-manager-registration-webhook-5649df75cf-r8k55      1/1     Running   0          57s
-open-cluster-management-hub   cluster-manager-work-webhook-776d978d64-2rxw2              1/1     Running   0          57s
-open-cluster-management-hub   cluster-manager-work-webhook-776d978d64-hxr8w              1/1     Running   0          57s
-open-cluster-management-hub   cluster-manager-work-webhook-776d978d64-jkxz4              1/1     Running   0          57s
-open-cluster-management       cluster-manager-5446b78b75-5r4sm                           1/1     Running   0          84s
-open-cluster-management       cluster-manager-5446b78b75-9l5tz                           1/1     Running   0          84s
-open-cluster-management       cluster-manager-5446b78b75-bwdbs                           1/1     Running   0          84s
-open-cluster-management       cluster-manager-registry-server-84fbf889b4-npr2w           1/1     Running   0          102s
-```
-
-### Managed cluster install after hub
-Requires hub installed via multicloud-operators-foundation (called `hub` in this example). Example managed cluster is `cluster1`. 
-
-Start new cluster (if applicable): `minikube start --profile=cluster1`
-
-If it doesn't exist yet, clone `registration-operator` into `multicloud-operators-foundation`: `cd multicloud-operators-foundation; git clone git@github.com:open-cluster-management/registration-operator.git`
-
-If `registration-operator` diff isn't applied, do that now: `cd registration-operator; git apply ../../ocm-minikube/registration-operator.diff`. Note this configuration has `ocm-minikube` and `multicloud-operators-foundation` in the same directory.
-
-If `multicloud-operator` diff isn't applied, do that now: `cd ..; git apply ../ocm-minikube/multicloud-operators-foundation.diff`
-
-Set up kubeconfig files and environment variables for your hub and managed cluster:
-```bash
-# set up hub variables, kubeconfig
-kubectl config view --flatten --context=hub --minify > /tmp/hub-config
-cp /tmp/hub-config registration-operator/.kubeconfig  # while in multicloud-operators-foundation root
-export HUB_KIND_KUBECONFIG=/tmp/hub-config
-
-# set up managed cluster variables, kubeconfig
-export KIND_CLUSTER=cluster1
-kubectl config view --flatten --context=cluster1 --minify > /tmp/cluster1-config
-export KLUSTERLET_KIND_KUBECONFIG=/tmp/cluster1-config
-```
-
-Change context to managed cluster and run deploy command: `kubectl config use-context cluster1; make deploy-klusterlet`
-
-Once installation is done, wait for deployments to appear and become ready:
-```bash
-$ kubectl get deployments -n open-cluster-management
-NAME                         READY   UP-TO-DATE   AVAILABLE   AGE
-klusterlet                   3/3     3            3           80m
-klusterlet-registry-server   1/1     1            1           81m
-
-$ kubectl get deployments -n open-cluster-management-agent
-NAME                            READY   UP-TO-DATE   AVAILABLE   AGE
-klusterlet-registration-agent   3/3     3            3           80m
-klusterlet-work-agent           3/3     3            3           80m
-```
-
-At this point, the managed cluster is installed, but it needs to be registered with the hub to complete the installation. 
-
-Switch context to hub: `kubectl config use-context hub`
-
-Get certificates: `kubectl get csr`:
-```
-NAME             AGE   SIGNERNAME                                    REQUESTOR          CONDITION
-cluster1-cmhj7   41m   kubernetes.io/kube-apiserver-client           minikube-user      Pending
-```
-
-Approve the certificate: `kubectl certificate approve cluster1-cmhj7`
-
-Apply patch to accept managedcluster: `kubectl patch managedcluster cluster1 -p='{"spec":{"hubAcceptsClient":true}}' --type=merge`
-
-Verify managed clusters have been accepted: `kubectl get managedcluster`
+## Environment Variables You'll Need
+By default, this process uses a hub cluster names `hub` and a managed cluster named `cluster1`. If you need to change these names for any reason, you'll need to update environment variables to support the new names. If you apply the `registration-operator` diff, this will include Kind clusters. Examples shown below:
 
 ```bash
-Sample output:
-NAME       HUB ACCEPTED   MANAGED CLUSTER URLS   JOINED   AVAILABLE   AGE
-cluster1   true           https://localhost      True     True        3m54s
+# cluster names
+export HUB_CLUSTER=kind-hub
+export MANAGED_CLUSTER=kind-cluster1
+
+# kubeconfig locations
+export KLUSTERLET_KIND_KUBECONFIG=~/cluster1-kubeconfig  # update to new cluster info location
+export HUB_KIND_KUBECONFIG=~/hub-kubeconfig  # update to new hub kubeconfig location
 ```
 
-## Enable ManagedClusterView resource
-By default, the ManagedClusterView resource is not available through `registration-operator`:
+## Prerequisite Setup for multicloud-operators-foundation
+### Hub setup
+Full documentation here: https://open-cluster-management.io/getting-started/core/cluster-manager/
 
 ```bash
-$ kubectl get managedclusterview
-error: the server doesn't have a resource type "managedclusterview" 
+# set up hub through Kind
+kind create cluster --name hub  # minikube start --profile=hub --cpus=4
+kind get kubeconfig --name hub --internal > ~/hub-kubeconfig  # kubectl config view --flatten --context=hub --minify > ~/hub-kubeconfig
+
+git clone https://github.com/open-cluster-management/multicloud-operators-foundation.git  # "ideal" path: ~/go/src/github.com/open-cluster-management
+
+# set up registration operator
+cd multicloud-operators-foundation
+git clone https://github.com/open-cluster-management/registration-operator
+kubectl config use-context kind-hub  # kubectl config use-context hub
+
+cd registration-operator
+
+# apply diff so Minikube setup is supported
+git apply ../../ocm-minikube/registration-operator.diff
+
+make deploy-hub
 ```
 
-To remedy this, first apply the crd to hub from `multicloud-operator-foundation` root: `kubectl config use-context hub; kubectl apply -f deploy/foundation/hub/resources/crds/view.open-cluster-management.io_managedclusterviews.yaml`
+### Managed Cluster setup
+Full documentation here: https://open-cluster-management.io/getting-started/core/register-cluster/
 
-Then apply a deployment. Note that the default deploys to the `cluster1` namespace: `kubectl apply -f examples/view/getdeployment.yaml`
-
-Now verify it works: `kubectl get managedclusterview --namespace=cluster1`
 ```bash
-NAME            AGE
-getdeployment   5m40s
+# set up cluster1 through Kind
+kind create cluster --name cluster1  # minikube start --profile=cluster1
+kind get kubeconfig --name cluster1 --internal > ~/cluster1-kubeconfig  # kubectl config view --flatten --context=cluster1 --minify > ~/cluster1-kubeconfig 
+
+kubectl config use-context kind-cluster1  # kubectl config use-context cluster1
+export KLUSTERLET_KIND_KUBECONFIG=~/cluster1-kubeconfig
+export HUB_KIND_KUBECONFIG=~/hub-kubeconfig
+make deploy-spoke-kind
 ```
+
+### Finish cluster registration
+```bash
+# apprive CSR on hub cluster
+kubectl config use-context kind-hub  # kubectl config use-context hub
+kubectl get csr  # make sure csr shows approved, issued AND cluster1 is Pending
+MANAGED_CLUSTER=$(kubectl get managedclusters | grep cluster | awk '{print $1}')
+CSR_NAME=$(kubectl get csr |grep $MANAGED_CLUSTER | grep Pending |awk '{print $1}')
+kubectl certificate approve "${CSR_NAME}"
+
+# accept managed cluster on hub
+MANAGED_CLUSTER=$(kubectl get managedclusters | grep cluster | awk '{print $1}')
+kubectl patch managedclusters $MANAGED_CLUSTER  --type merge --patch '{"spec":{"hubAcceptsClient":true}}'
+
+kubectl get managedclusters  # should see cluster1 listed as Hub Accepted, JOINED True and AVAILABLE True
+```
+
+## Install multicloud-operators-foundation
+```bash
+kubectl config use-context kind-hub  # kubectl config use-context hub
+
+cd ..  # pwd=multicloud-operators-foundation for the following steps
+
+make deploy-foundation-hub
+export MANAGED_CLUSTER_NAME=cluster1
+make deploy-foundation-agent
+```
+
+## Notes
+1. Kind references are hard-coded in [registration-operator](https://github.com/open-cluster-management/registration-operator). The diff removes `kind-` references from Makefile. For full compatibility, use `export HUB_CLUSTER=hub` and `export MANAGED_CLUSTER=cluster1` before installing. 
